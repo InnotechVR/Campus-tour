@@ -4,162 +4,132 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="mobile-web-app-capable" content="yes">
-  <title>Campus Tour — Street View</title>
-
+  <title>Campus Tour — Street View (debug)</title>
   <style>
-    :root {
-      --ink: #11151c;
-      --paper: #f6f4ee;
-      --signal: #c8472b;
-      --signal-soft: #e9d9d2;
-    }
-    * { box-sizing: border-box; }
-    html, body { margin: 0; height: 100%; background: var(--ink);
-      font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+    :root { --ink:#11151c; --paper:#f6f4ee; --signal:#c8472b; --signal-soft:#e9d9d2; }
+    * { box-sizing:border-box; }
+    html, body { margin:0; height:100%; background:var(--ink);
+      font-family:"Inter",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; }
 
-    /* ---- Setup / key entry ---- */
-    #setup {
-      position: fixed; inset: 0; z-index: 50;
-      background: radial-gradient(120% 90% at 80% -10%, #1b2330 0%, var(--ink) 55%);
-      color: var(--paper);
-      display: flex; align-items: center; justify-content: center; padding: 24px;
-    }
-    #setup .card { width: 100%; max-width: 560px; }
-    .eyebrow {
-      font-family: ui-monospace, "SF Mono", Menlo, monospace;
-      font-size: 12px; letter-spacing: .28em; text-transform: uppercase;
-      color: var(--signal); margin: 0 0 14px;
-    }
-    #setup h1 {
-      font-family: Georgia, "Times New Roman", serif;
-      font-weight: 400; font-size: clamp(30px, 6vw, 46px);
-      line-height: 1.05; margin: 0 0 14px; letter-spacing: -.01em;
-    }
-    #setup p { font-size: 15px; line-height: 1.6; color: #c4ccd6; margin: 0 0 22px; max-width: 46ch; }
-    .field { margin: 0 0 16px; }
-    .field label {
-      display: block; font-size: 12px; letter-spacing: .12em; text-transform: uppercase;
-      color: #9aa6b3; margin: 0 0 8px;
-    }
-    .field input {
-      width: 100%; padding: 14px 15px; font-size: 15px;
-      background: #11171f; color: var(--paper);
-      border: 1px solid #2a323d; border-radius: 10px; outline: none;
-      font-family: ui-monospace, Menlo, monospace;
-    }
-    .field input:focus { border-color: var(--signal); }
-    .start {
-      appearance: none; cursor: pointer; width: 100%;
-      padding: 15px 18px; margin-top: 6px;
-      font-size: 15px; font-weight: 600; letter-spacing: .02em;
-      color: var(--ink); background: var(--paper);
-      border: 0; border-radius: 10px;
-      transition: transform .12s ease, background .12s ease;
-    }
-    .start:hover { background: #fff; transform: translateY(-1px); }
-    .start:active { transform: translateY(0); }
-    .hint {
-      margin-top: 18px; font-size: 12.5px; line-height: 1.6; color: #8893a0;
-      border-top: 1px solid #232a34; padding-top: 16px;
-    }
-    .hint a { color: var(--signal-soft); }
-    .err { color: #ff8d6f; font-size: 13px; min-height: 18px; margin: 4px 0 0; }
+    #setup { position:fixed; inset:0; z-index:50;
+      background:radial-gradient(120% 90% at 80% -10%,#1b2330 0%,var(--ink) 55%);
+      color:var(--paper); display:flex; align-items:center; justify-content:center; padding:24px; }
+    #setup .card { width:100%; max-width:560px; }
+    .eyebrow { font-family:ui-monospace,Menlo,monospace; font-size:12px; letter-spacing:.28em;
+      text-transform:uppercase; color:var(--signal); margin:0 0 14px; }
+    #setup h1 { font-family:Georgia,serif; font-weight:400; font-size:clamp(28px,6vw,44px);
+      line-height:1.05; margin:0 0 14px; }
+    #setup p { font-size:15px; line-height:1.6; color:#c4ccd6; margin:0 0 20px; }
+    .field { margin:0 0 14px; }
+    .field label { display:block; font-size:12px; letter-spacing:.12em; text-transform:uppercase;
+      color:#9aa6b3; margin:0 0 8px; }
+    .field input { width:100%; padding:14px 15px; font-size:15px; background:#11171f;
+      color:var(--paper); border:1px solid #2a323d; border-radius:10px; outline:none;
+      font-family:ui-monospace,Menlo,monospace; }
+    .field input:focus { border-color:var(--signal); }
+    .start { appearance:none; cursor:pointer; width:100%; padding:15px 18px; margin-top:6px;
+      font-size:15px; font-weight:600; color:var(--ink); background:var(--paper);
+      border:0; border-radius:10px; }
+    .err { color:#ff8d6f; font-size:13px; min-height:18px; margin:6px 0 0; }
 
-    /* ---- Panorama fills the screen ---- */
-    #pano { position: fixed; inset: 0; z-index: 1; display: none; }
+    #pano { position:fixed; inset:0; z-index:1; display:none; background:#0c0f14; }
 
-    /* ---- HUD + stop switcher ---- */
-    #hud {
-      position: fixed; left: 16px; bottom: 16px; z-index: 20; display: none;
-      color: var(--paper);
-      background: rgba(17,21,28,.62); backdrop-filter: blur(8px);
-      border: 1px solid rgba(255,255,255,.12); border-radius: 12px;
-      padding: 12px 16px; max-width: 80vw;
+    /* Always-on debug log, readable inside the headset */
+    #log {
+      position:fixed; left:12px; top:12px; z-index:60; display:none;
+      max-width:min(92vw,560px); max-height:70vh; overflow:auto;
+      background:rgba(6,9,13,.9); color:#c8f0d0; border:1px solid rgba(255,255,255,.15);
+      border-radius:10px; padding:10px 12px; font-family:ui-monospace,Menlo,monospace;
+      font-size:13px; line-height:1.5; white-space:pre-wrap; word-break:break-word;
     }
-    #hud .stop {
-      font-family: ui-monospace, Menlo, monospace; font-size: 11px;
-      letter-spacing: .2em; color: var(--signal-soft); text-transform: uppercase;
-    }
-    #hud .name { font-size: 16px; margin-top: 3px; }
-    #stops { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
-    #stops button {
-      appearance: none; cursor: pointer;
-      font-size: 12.5px; color: var(--paper);
-      background: rgba(255,255,255,.08); border: 1px solid rgba(255,255,255,.18);
-      border-radius: 999px; padding: 7px 12px;
-    }
-    #stops button.active { background: var(--signal); border-color: var(--signal); color: #fff; }
+    #log .e { color:#ff9d80; }
+    #log .ok { color:#8ee6a0; }
+    #log .i { color:#b9c2cd; }
+
+    #hud { position:fixed; left:16px; bottom:16px; z-index:20; display:none; color:var(--paper);
+      background:rgba(17,21,28,.62); backdrop-filter:blur(8px);
+      border:1px solid rgba(255,255,255,.12); border-radius:12px; padding:12px 16px; max-width:80vw; }
+    #hud .stop { font-family:ui-monospace,Menlo,monospace; font-size:11px; letter-spacing:.2em;
+      color:var(--signal-soft); text-transform:uppercase; }
+    #hud .name { font-size:16px; margin-top:3px; }
+    #stops { display:flex; flex-wrap:wrap; gap:8px; margin-top:10px; }
+    #stops button { appearance:none; cursor:pointer; font-size:12.5px; color:var(--paper);
+      background:rgba(255,255,255,.08); border:1px solid rgba(255,255,255,.18);
+      border-radius:999px; padding:7px 12px; }
+    #stops button.active { background:var(--signal); border-color:var(--signal); color:#fff; }
   </style>
 </head>
 <body>
 
-  <!-- ===================== SETUP ===================== -->
   <div id="setup">
     <div class="card">
-      <p class="eyebrow">Recruitment / VR booth</p>
-      <h1>Campus tour · Street View</h1>
-      <p>
-        Paste a Google Maps API key with the <strong>Maps JavaScript API</strong> enabled,
-        then start. Look around by dragging; on a phone-in-headset, turning the device
-        moves the view. Tap a stop below to jump between locations.
-      </p>
-
+      <p class="eyebrow">Recruitment / VR booth &middot; debug</p>
+      <h1>Street View &mdash; diagnostic</h1>
+      <p>Paste your key and load. Every step is logged on-screen (top-left) so you can read
+         exactly where it stops, right inside the headset.</p>
       <div class="field">
         <label for="key">Google Maps API key</label>
-        <input id="key" type="text" placeholder="AIza…" autocomplete="off" spellcheck="false">
+        <input id="key" type="text" placeholder="AIza&hellip;" autocomplete="off" spellcheck="false">
         <p class="err" id="err"></p>
       </div>
-
       <button class="start" id="startBtn">Load the tour</button>
-
-      <p class="hint">
-        Note: Google’s Street View widget renders as a <strong>mono</strong> panorama —
-        drag/phone-tilt to look. It is not stereo head-tracked VR (Google doesn’t expose that
-        to the browser). For true head-tracked stereo VR use self-hosted 360° photos instead.<br><br>
-        Get a key at
-        <a href="https://console.cloud.google.com/google/maps-apis" target="_blank" rel="noopener">console.cloud.google.com/google/maps-apis</a>,
-        enable “Maps JavaScript API,” and restrict it to your domain before public use.
-      </p>
     </div>
   </div>
 
-  <!-- ===================== PANORAMA + HUD ===================== -->
   <div id="pano"></div>
+  <div id="log"></div>
   <div id="hud">
     <div class="stop" id="hudStop">Stop 01</div>
-    <div class="name" id="hudName">—</div>
+    <div class="name" id="hudName">&mdash;</div>
     <div id="stops"></div>
   </div>
 
   <script>
-    /* Each stop = a Street View location. Add heading to set the initial facing. */
     const STOPS = [
-      { id: "cronkite",  name: "Cronkite School / Arizona PBS", lat: 33.4536581, lng: -112.0736419, heading: 200 },
-      { id: "univcenter", name: "University Center",            lat: 33.4529570, lng: -112.0734512, heading: 250 },
-      { id: "civic",      name: "Civic Space Park",             lat: 33.4544697, lng: -112.0746113, heading: 70  }
+      { id:"cronkite",   name:"Cronkite School / Arizona PBS", lat:33.4536581, lng:-112.0736419, heading:200 },
+      { id:"univcenter", name:"University Center",             lat:33.4529570, lng:-112.0734512, heading:250 },
+      { id:"civic",      name:"Civic Space Park",              lat:33.4544697, lng:-112.0746113, heading:70  }
     ];
 
-    let panorama = null;
+    let panorama = null, svService = null;
     const $ = (s) => document.querySelector(s);
+
+    const logEl = $("#log");
+    function log(msg, cls) {
+      logEl.style.display = "block";
+      const line = document.createElement("div");
+      if (cls) line.className = cls;
+      const t = new Date().toLocaleTimeString();
+      line.textContent = "[" + t + "] " + msg;
+      logEl.appendChild(line);
+      logEl.scrollTop = logEl.scrollHeight;
+    }
+
+    // Catch everything, so nothing fails silently to a black screen
+    window.addEventListener("error", (e) =>
+      log("JS ERROR: " + (e.message || e.error) + (e.filename ? " @ " + e.filename : ""), "e"));
+    window.addEventListener("unhandledrejection", (e) =>
+      log("PROMISE REJECT: " + (e.reason && e.reason.message ? e.reason.message : e.reason), "e"));
+    window.gm_authFailure = () =>
+      log("gm_authFailure: Google rejected the key (billing OFF, API not enabled, or referrer not allowed).", "e");
 
     function loadGoogle(key) {
       return new Promise((resolve, reject) => {
+        log("Loading Google Maps JS...", "i");
         const s = document.createElement("script");
         s.src = "https://maps.googleapis.com/maps/api/js?key=" + encodeURIComponent(key) + "&v=weekly";
         s.async = true;
-        s.onload = resolve;
-        s.onerror = () => reject(new Error("Could not load Google Maps. Check the key and that Maps JavaScript API is enabled."));
+        s.onload = () => { log("Google Maps JS onload fired.", "ok"); resolve(); };
+        s.onerror = () => reject(new Error("script onerror (network blocked, or Maps JS API not enabled)"));
         document.head.appendChild(s);
       });
     }
 
     function buildStopButtons() {
-      const wrap = $("#stops");
-      wrap.innerHTML = "";
+      const wrap = $("#stops"); wrap.innerHTML = "";
       STOPS.forEach((stop) => {
         const b = document.createElement("button");
-        b.textContent = stop.name;
-        b.dataset.id = stop.id;
+        b.textContent = stop.name; b.dataset.id = stop.id;
         b.addEventListener("click", () => goTo(stop.id));
         wrap.appendChild(b);
       });
@@ -167,46 +137,54 @@
 
     function goTo(stopId) {
       const stop = STOPS.find((s) => s.id === stopId);
-      if (!stop || !panorama) return;
-      panorama.setPosition({ lat: stop.lat, lng: stop.lng });
-      panorama.setPov({ heading: stop.heading || 0, pitch: 0 });
-
-      const idx = STOPS.indexOf(stop) + 1;
-      $("#hudStop").textContent = "Stop " + String(idx).padStart(2, "0");
-      $("#hudName").textContent = stop.name;
-      document.querySelectorAll("#stops button").forEach((b) =>
-        b.classList.toggle("active", b.dataset.id === stopId));
+      if (!stop) return;
+      log("Looking up imagery near " + stop.name + " ...", "i");
+      svService.getPanorama({ location:{ lat:stop.lat, lng:stop.lng }, radius:120 }, (data, status) => {
+        log("getPanorama status = " + status, status === google.maps.StreetViewStatus.OK ? "ok" : "e");
+        if (status !== google.maps.StreetViewStatus.OK) {
+          log("-> no imagery here; move this stop's lat/lng closer to a street.", "e");
+          return;
+        }
+        log("panoId = " + data.location.pano + " — calling setPano()", "ok");
+        panorama.setPano(data.location.pano);
+        panorama.setPov({ heading: stop.heading || 0, pitch: 0 });
+        const idx = STOPS.indexOf(stop) + 1;
+        $("#hudStop").textContent = "Stop " + String(idx).padStart(2, "0");
+        $("#hudName").textContent = stop.name;
+        document.querySelectorAll("#stops button").forEach((b) =>
+          b.classList.toggle("active", b.dataset.id === stopId));
+        log("Done. If the view is still black, it is the WebGL Street View renderer in this browser.", "i");
+      });
     }
 
     $("#startBtn").addEventListener("click", async () => {
       const key = $("#key").value.trim();
       $("#err").textContent = "";
       if (!key) { $("#err").textContent = "Paste your API key first."; return; }
-      $("#startBtn").textContent = "Loading…";
+      $("#startBtn").textContent = "Loading...";
+      log("Start clicked. Key length = " + key.length, "i");
       try {
         await loadGoogle(key);
-        const first = STOPS[0];
+        log("google object present = " + (typeof google !== "undefined"), "i");
+        svService = new google.maps.StreetViewService();
+        log("StreetViewService created.", "ok");
         panorama = new google.maps.StreetViewPanorama($("#pano"), {
-          position: { lat: first.lat, lng: first.lng },
-          pov: { heading: first.heading || 0, pitch: 0 },
-          zoom: 0,
-          motionTracking: true,          // phone tilt / device orientation drives the view
-          motionTrackingControl: true,
-          addressControl: false,
-          fullscreenControl: false,
-          linksControl: true,            // Google's own move-forward arrows
-          panControl: false,
-          zoomControl: false,
-          enableCloseButton: false
+          pov:{ heading:0, pitch:0 }, zoom:0,
+          motionTracking:true, motionTrackingControl:true,
+          addressControl:false, fullscreenControl:false, linksControl:true,
+          panControl:false, zoomControl:false, enableCloseButton:false
         });
+        log("StreetViewPanorama created.", "ok");
+        panorama.addListener("status_changed", () => log("panorama status_changed = " + panorama.getStatus(), "i"));
         $("#setup").style.display = "none";
         $("#pano").style.display = "block";
         $("#hud").style.display = "block";
         buildStopButtons();
-        goTo(first.id);
+        goTo(STOPS[0].id);
       } catch (e) {
         $("#startBtn").textContent = "Load the tour";
         $("#err").textContent = e.message;
+        log("FATAL: " + e.message, "e");
       }
     });
 
