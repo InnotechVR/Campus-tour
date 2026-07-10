@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="mobile-web-app-capable" content="yes">
+  <title>Campus Tour — VR</title>
+
+  <!-- A-Frame: WebXR framework. Works in Meta Quest Browser & PICO Browser. -->
+  <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
+
+  <style>
+    :root {
+      --ink: #11151c;
+      --paper: #f6f4ee;
+      --signal: #c8472b;      /* a deliberate warm signal accent, not the AI-default terracotta-on-cream hero */
+      --signal-soft: #e9d9d2;
+      --line: rgba(17,21,28,.16);
+    }
+
+    * { box-sizing: border-box; }
+
+    html, body { margin: 0; height: 100%; background: var(--ink); }
+
+    /* ---- Setup / key entry screen (shown before tour loads) ---- */
+    #setup {
+      position: fixed; inset: 0; z-index: 50;
+      background:
+        radial-gradient(120% 90% at 80% -10%, #1b2330 0%, var(--ink) 55%);
+      color: var(--paper);
+      display: flex; align-items: center; justify-content: center;
+      font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      padding: 24px;
+    }
+    #setup .card { width: 100%; max-width: 560px; }
+
+    .eyebrow {
+      font-family: ui-monospace, "SF Mono", Menlo, monospace;
+      font-size: 12px; letter-spacing: .28em; text-transform: uppercase;
+      color: var(--signal); margin: 0 0 14px;
+    }
+    #setup h1 {
+      font-family: Georgia, "Times New Roman", serif;
+      font-weight: 400; font-size: clamp(30px, 6vw, 46px);
+      line-height: 1.05; margin: 0 0 14px; letter-spacing: -.01em;
+    }
+    #setup p { font-size: 15px; line-height: 1.6; color: #c4ccd6; margin: 0 0 22px; max-width: 46ch; }
+
+    .field { margin: 0 0 16px; }
+    .field label {
+      display: block; font-size: 12px; letter-spacing: .12em; text-transform: uppercase;
+      color: #9aa6b3; margin: 0 0 8px;
+    }
+    .field input {
+      width: 100%; padding: 14px 15px; font-size: 15px;
+      background: #11171f; color: var(--paper);
+      border: 1px solid #2a323d; border-radius: 10px; outline: none;
+      font-family: ui-monospace, Menlo, monospace;
+    }
+    .field input:focus { border-color: var(--signal); }
+
+    .start {
+      appearance: none; cursor: pointer; width: 100%;
+      padding: 15px 18px; margin-top: 6px;
+      font-size: 15px; font-weight: 600; letter-spacing: .02em;
+      color: var(--ink); background: var(--paper);
+      border: 0; border-radius: 10px;
+      transition: transform .12s ease, background .12s ease;
+    }
+    .start:hover { background: #fff; transform: translateY(-1px); }
+    .start:active { transform: translateY(0); }
+    .start:focus-visible { outline: 3px solid var(--signal); outline-offset: 2px; }
+
+    .hint {
+      margin-top: 18px; font-size: 12.5px; line-height: 1.6; color: #8893a0;
+      border-top: 1px solid #232a34; padding-top: 16px;
+    }
+    .hint a { color: var(--signal-soft); }
+    .err { color: #ff8d6f; font-size: 13px; min-height: 18px; margin: 4px 0 0; }
+
+    /* ---- In-tour location label ---- */
+    #hud {
+      position: fixed; left: 16px; bottom: 16px; z-index: 20; display: none;
+      font-family: "Inter", -apple-system, sans-serif; color: var(--paper);
+      background: rgba(17,21,28,.62); backdrop-filter: blur(8px);
+      border: 1px solid rgba(255,255,255,.12); border-radius: 12px;
+      padding: 12px 16px; max-width: 70vw;
+    }
+    #hud .stop {
+      font-family: ui-monospace, Menlo, monospace; font-size: 11px;
+      letter-spacing: .2em; color: var(--signal-soft); text-transform: uppercase;
+    }
+    #hud .name { font-size: 16px; margin-top: 3px; }
+    #hud .nav { font-size: 12px; color: #b9c2cd; margin-top: 6px; }
+  </style>
+</head>
+<body>
+
+  <!-- ===================== SETUP SCREEN ===================== -->
+  <div id="setup">
+    <div class="card">
+      <p class="eyebrow">Recruitment / VR booth</p>
+      <h1>Campus tour in the headset</h1>
+      <p>
+        Paste a Google Maps API key with the <strong>Maps JavaScript API</strong> and
+        <strong>Street View</strong> enabled, then start. The tour loads head-tracked 360°
+        panoramas you look around by turning your head, with tappable points to move between stops.
+      </p>
+
+      <div class="field">
+        <label for="key">Google Maps API key</label>
+        <input id="key" type="text" placeholder="AIza…" autocomplete="off" spellcheck="false">
+        <p class="err" id="err"></p>
+      </div>
+
+      <button class="start" id="startBtn">Load the tour</button>
+
+      <p class="hint">
+        On the headset: open this page in the Quest Browser or PICO Browser, load the tour,
+        then press <strong>Enter VR</strong> (bottom-right goggles icon) to go fully immersive and head-tracked.
+        Get a free key at <a href="https://console.cloud.google.com/google/maps-apis" target="_blank" rel="noopener">console.cloud.google.com/google/maps-apis</a> —
+        enable “Maps JavaScript API.” Keep this key for testing only; restrict it to your domain before any public use.
+      </p>
+    </div>
+  </div>
+
+  <!-- ===================== HUD ===================== -->
+  <div id="hud">
+    <div class="stop" id="hudStop">Stop 01</div>
+    <div class="name" id="hudName">—</div>
+    <div class="nav">Look around · tap a marker to move on</div>
+  </div>
+
+  <!-- ===================== A-FRAME SCENE ===================== -->
+  <a-scene id="scene" vr-mode-ui="enabled: true" loading-screen="enabled: false"
+           renderer="colorManagement: true" style="display:none;">
+
+    <!-- Sky sphere: we paint the Street View panorama onto this via a canvas texture -->
+    <a-sky id="sky" rotation="0 -90 0"></a-sky>
+
+    <!-- Hotspot container (markers populated by JS per stop) -->
+    <a-entity id="hotspots"></a-entity>
+
+    <!-- Reticle so the user has a gaze cursor in VR (no controller needed) -->
+    <a-camera>
+      <a-cursor
+        fuse="true" fuse-timeout="900"
+        material="color: #c8472b; shader: flat"
+        geometry="primitive: ring; radiusInner: 0.012; radiusOuter: 0.02"
+        animation__click="property: scale; startEvents: click; from: 0.1 0.1 0.1; to: 1 1 1; dur: 200">
+      </a-cursor>
+    </a-camera>
+  </a-scene>
+
+  <script>
+    /* =========================================================
+       TOUR DEFINITION
+       Each stop has a lat/lng (Street View location) and a list
+       of links to other stops, placed as markers at a heading
+       (degrees: 0 = north, 90 = east). Swap these coordinates
+       for YOUR campus, or replace with your own 360 photos later.
+       The sample below walks the ASU Downtown Phoenix campus.
+    ========================================================= */
+    const STOPS = [
+      {
+        id: "cronkite", name: "Cronkite School / Arizona PBS",
+        lat: 33.4536581, lng: -112.0736419,
+        links: [{ to: "univcenter", heading: 200, label: "University Center" }]
+      },
+      {
+        id: "univcenter", name: "University Center",
+        lat: 33.4529570, lng: -112.0734512,
+        links: [
+          { to: "cronkite", heading: 20, label: "Back to Cronkite" },
+          { to: "civic", heading: 250, label: "Civic Space Park" }
+        ]
+      },
+      {
+        id: "civic", name: "Civic Space Park",
+        lat: 33.4544697, lng: -112.0746113,
+        links: [{ to: "univcenter", heading: 70, label: "University Center" }]
+      }
+    ];
+
+    let API_KEY = "";
+    let svService = null;
+    let currentStop = STOPS[0].id;
+
+    const $ = (s) => document.querySelector(s);
+
+    /* ---- Load the Google Maps JS API dynamically with the user's key ---- */
+    function loadGoogle(key) {
+      return new Promise((resolve, reject) => {
+        const s = document.createElement("script");
+        s.src = "https://maps.googleapis.com/maps/api/js?key=" + encodeURIComponent(key) + "&v=weekly";
+        s.async = true;
+        s.onload = () => resolve();
+        s.onerror = () => reject(new Error("Could not load Google Maps. Check the key and that Maps JavaScript API is enabled."));
+        document.head.appendChild(s);
+      });
+    }
+
+    /* ---- Fetch a Street View panorama and paint it onto the sky sphere ----
+       Street View serves panoramas in tiles. We request the equirectangular
+       panorama via the Street View image tiles and composite them on a canvas,
+       then hand that canvas to A-Frame's <a-sky> as a texture. */
+    function loadPanoramaForStop(stop) {
+      return new Promise((resolve, reject) => {
+        svService.getPanorama({ location: { lat: stop.lat, lng: stop.lng }, radius: 80 },
+          (data, status) => {
+            if (status !== google.maps.StreetViewStatus.OK) {
+              reject(new Error("No Street View imagery near " + stop.name));
+              return;
+            }
+            const panoId = data.location.pano;
+            buildEquirect(panoId).then(resolve).catch(reject);
+          });
+      });
+    }
+
+    /* Composite Street View tiles (zoom 2 → 7x4 grid of 512px tiles) into one
+       equirectangular canvas the sky sphere can use. */
+    function buildEquirect(panoId) {
+      return new Promise((resolve, reject) => {
+        const zoom = 2, cols = 7, rows = 4, tile = 512;
+        const canvas = document.createElement("canvas");
+        canvas.width = cols * tile;
+        canvas.height = rows * tile;
+        const ctx = canvas.getContext("2d");
+        let loaded = 0, total = cols * rows, failed = false;
+
+        for (let x = 0; x < cols; x++) {
+          for (let y = 0; y < rows; y++) {
+            const img = new Image();
+            img.crossOrigin = "anonymous";
+            img.onload = () => {
+              ctx.drawImage(img, x * tile, y * tile, tile, tile);
+              if (++loaded === total && !failed) resolve(canvas.toDataURL("image/jpeg", 0.9));
+            };
+            img.onerror = () => {
+              if (!failed) { failed = true; reject(new Error("Tile load failed — key may be restricted.")); }
+            };
+            img.src = "https://streetviewpixels-pa.googleapis.com/v1/tile?cb_client=apiv3"
+              + "&panoid=" + panoId + "&output=tile&zoom=" + zoom
+              + "&x=" + x + "&y=" + y + "&nbt=1&fover=2";
+          }
+        }
+      });
+    }
+
+    /* ---- Render markers for the links out of the current stop ---- */
+    function renderHotspots(stop) {
+      const container = $("#hotspots");
+      container.innerHTML = "";
+      stop.links.forEach((link) => {
+        const rad = (link.heading - 90) * Math.PI / 180; // heading→scene angle
+        const r = 6;
+        const px = r * Math.cos(rad);
+        const pz = r * Math.sin(rad);
+
+        const marker = document.createElement("a-entity");
+        marker.setAttribute("position", `${px} 0 ${pz}`);
+        marker.setAttribute("look-at", "[camera]");
+
+        const disc = document.createElement("a-circle");
+        disc.setAttribute("radius", "0.6");
+        disc.setAttribute("material", "color: #c8472b; shader: flat; opacity: 0.92; side: double");
+        disc.setAttribute("class", "clickable");
+        disc.setAttribute("animation__pulse",
+          "property: scale; dir: alternate; loop: true; dur: 1100; from: 1 1 1; to: 1.12 1.12 1.12");
+
+        const txt = document.createElement("a-text");
+        txt.setAttribute("value", link.label);
+        txt.setAttribute("align", "center");
+        txt.setAttribute("position", "0 -0.95 0");
+        txt.setAttribute("width", "6");
+        txt.setAttribute("color", "#f6f4ee");
+
+        disc.addEventListener("click", () => goTo(link.to));
+        marker.appendChild(disc);
+        marker.appendChild(txt);
+        container.appendChild(marker);
+      });
+    }
+
+    /* ---- Move to a stop: load its panorama + markers + HUD ---- */
+    async function goTo(stopId) {
+      const stop = STOPS.find((s) => s.id === stopId);
+      if (!stop) return;
+      currentStop = stopId;
+      const idx = STOPS.indexOf(stop) + 1;
+      $("#hudStop").textContent = "Stop " + String(idx).padStart(2, "0");
+      $("#hudName").textContent = stop.name;
+      try {
+        const dataUrl = await loadPanoramaForStop(stop);
+        $("#sky").setAttribute("src", dataUrl);
+        renderHotspots(stop);
+      } catch (e) {
+        $("#hudName").textContent = stop.name + " — " + e.message;
+      }
+    }
+
+    /* ---- Start button ---- */
+    $("#startBtn").addEventListener("click", async () => {
+      const key = $("#key").value.trim();
+      $("#err").textContent = "";
+      if (!key) { $("#err").textContent = "Paste your API key first."; return; }
+      API_KEY = key;
+      $("#startBtn").textContent = "Loading…";
+      try {
+        await loadGoogle(API_KEY);
+        svService = new google.maps.StreetViewService();
+        $("#setup").style.display = "none";
+        $("#scene").style.display = "block";
+        $("#hud").style.display = "block";
+        await goTo(STOPS[0].id);
+      } catch (e) {
+        $("#startBtn").textContent = "Load the tour";
+        $("#err").textContent = e.message;
+      }
+    });
+
+    // Allow Enter key to submit
+    $("#key").addEventListener("keydown", (e) => { if (e.key === "Enter") $("#startBtn").click(); });
+  </script>
+</body>
+</html>
