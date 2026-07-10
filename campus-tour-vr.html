@@ -4,7 +4,8 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="mobile-web-app-capable" content="yes">
-  <title>Campus Tour — Street View (debug)</title>
+  <title>Campus Tour — VR</title>
+  <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
   <style>
     :root { --ink:#11151c; --paper:#f6f4ee; --signal:#c8472b; --signal-soft:#e9d9d2; }
     * { box-sizing:border-box; }
@@ -17,34 +18,16 @@
     #setup .card { width:100%; max-width:560px; }
     .eyebrow { font-family:ui-monospace,Menlo,monospace; font-size:12px; letter-spacing:.28em;
       text-transform:uppercase; color:var(--signal); margin:0 0 14px; }
-    #setup h1 { font-family:Georgia,serif; font-weight:400; font-size:clamp(28px,6vw,44px);
+    #setup h1 { font-family:Georgia,serif; font-weight:400; font-size:clamp(30px,6vw,46px);
       line-height:1.05; margin:0 0 14px; }
-    #setup p { font-size:15px; line-height:1.6; color:#c4ccd6; margin:0 0 20px; }
-    .field { margin:0 0 14px; }
-    .field label { display:block; font-size:12px; letter-spacing:.12em; text-transform:uppercase;
-      color:#9aa6b3; margin:0 0 8px; }
-    .field input { width:100%; padding:14px 15px; font-size:15px; background:#11171f;
-      color:var(--paper); border:1px solid #2a323d; border-radius:10px; outline:none;
-      font-family:ui-monospace,Menlo,monospace; }
-    .field input:focus { border-color:var(--signal); }
+    #setup p { font-size:15px; line-height:1.6; color:#c4ccd6; margin:0 0 22px; max-width:48ch; }
     .start { appearance:none; cursor:pointer; width:100%; padding:15px 18px; margin-top:6px;
       font-size:15px; font-weight:600; color:var(--ink); background:var(--paper);
-      border:0; border-radius:10px; }
-    .err { color:#ff8d6f; font-size:13px; min-height:18px; margin:6px 0 0; }
-
-    #pano { position:fixed; inset:0; z-index:1; display:none; background:#0c0f14; }
-
-    /* Always-on debug log, readable inside the headset */
-    #log {
-      position:fixed; left:12px; top:12px; z-index:60; display:none;
-      max-width:min(92vw,560px); max-height:70vh; overflow:auto;
-      background:rgba(6,9,13,.9); color:#c8f0d0; border:1px solid rgba(255,255,255,.15);
-      border-radius:10px; padding:10px 12px; font-family:ui-monospace,Menlo,monospace;
-      font-size:13px; line-height:1.5; white-space:pre-wrap; word-break:break-word;
-    }
-    #log .e { color:#ff9d80; }
-    #log .ok { color:#8ee6a0; }
-    #log .i { color:#b9c2cd; }
+      border:0; border-radius:10px; transition:transform .12s,background .12s; }
+    .start:hover { background:#fff; transform:translateY(-1px); }
+    .hint { margin-top:18px; font-size:12.5px; line-height:1.6; color:#8893a0;
+      border-top:1px solid #232a34; padding-top:16px; }
+    .hint code { color:var(--signal-soft); }
 
     #hud { position:fixed; left:16px; bottom:16px; z-index:20; display:none; color:var(--paper);
       background:rgba(17,21,28,.62); backdrop-filter:blur(8px);
@@ -52,143 +35,156 @@
     #hud .stop { font-family:ui-monospace,Menlo,monospace; font-size:11px; letter-spacing:.2em;
       color:var(--signal-soft); text-transform:uppercase; }
     #hud .name { font-size:16px; margin-top:3px; }
-    #stops { display:flex; flex-wrap:wrap; gap:8px; margin-top:10px; }
-    #stops button { appearance:none; cursor:pointer; font-size:12.5px; color:var(--paper);
-      background:rgba(255,255,255,.08); border:1px solid rgba(255,255,255,.18);
-      border-radius:999px; padding:7px 12px; }
-    #stops button.active { background:var(--signal); border-color:var(--signal); color:#fff; }
+    #hud .nav { font-size:12px; color:#b9c2cd; margin-top:6px; }
+    #loading { position:fixed; top:16px; left:50%; transform:translateX(-50%); z-index:25;
+      display:none; color:var(--paper); background:rgba(17,21,28,.7); border-radius:999px;
+      padding:8px 16px; font-size:13px; }
   </style>
 </head>
 <body>
 
   <div id="setup">
     <div class="card">
-      <p class="eyebrow">Recruitment / VR booth &middot; debug</p>
-      <h1>Street View &mdash; diagnostic</h1>
-      <p>Paste your key and load. Every step is logged on-screen (top-left) so you can read
-         exactly where it stops, right inside the headset.</p>
-      <div class="field">
-        <label for="key">Google Maps API key</label>
-        <input id="key" type="text" placeholder="AIza&hellip;" autocomplete="off" spellcheck="false">
-        <p class="err" id="err"></p>
-      </div>
-      <button class="start" id="startBtn">Load the tour</button>
+      <p class="eyebrow">Recruitment / VR booth</p>
+      <h1>Campus tour in the headset</h1>
+      <p>Head-tracked 360&deg; panoramas &mdash; look around by turning your head, tap a marker
+         to move between stops. No API key. Works in the Quest &amp; PICO browsers.</p>
+      <button class="start" id="startBtn">Enter the tour</button>
+      <p class="hint">
+        After it loads, press <strong>Enter VR</strong> (goggles icon, bottom-right) for full
+        head-tracked stereo. To use your campus, shoot equirectangular 360&deg; photos, drop the
+        .jpg files next to this HTML, and set each stop&rsquo;s <code>image</code> in the STOPS list.
+      </p>
     </div>
   </div>
 
-  <div id="pano"></div>
-  <div id="log"></div>
   <div id="hud">
     <div class="stop" id="hudStop">Stop 01</div>
     <div class="name" id="hudName">&mdash;</div>
-    <div id="stops"></div>
+    <div class="nav">Look around &middot; tap a marker to move on</div>
   </div>
+  <div id="loading">Loading panorama&hellip;</div>
+
+  <a-scene id="scene" vr-mode-ui="enabled: true" loading-screen="enabled: false"
+           renderer="colorManagement: true" style="display:none;">
+    <a-sky id="sky" rotation="0 -90 0" material="shader: flat"></a-sky>
+    <a-entity id="hotspots"></a-entity>
+
+    <a-camera>
+      <!-- Fade sphere wraps the head for smooth black transitions between stops -->
+      <a-sphere id="fade" radius="8" material="color:#000; shader:flat; side:back; opacity:0; transparent:true"
+                scale="-1 1 1"></a-sphere>
+      <a-cursor fuse="true" fuse-timeout="900"
+        material="color:#c8472b; shader:flat"
+        geometry="primitive:ring; radiusInner:0.012; radiusOuter:0.02"
+        animation__click="property:scale; startEvents:click; from:0.1 0.1 0.1; to:1 1 1; dur:200"></a-cursor>
+    </a-camera>
+  </a-scene>
 
   <script>
+    /* Replace image with your own equirectangular 360 photos, e.g. image:"panos/cronkite.jpg".
+       Demo panoramas below are free A-Frame sample images so it runs immediately. */
     const STOPS = [
-      { id:"cronkite",   name:"Cronkite School / Arizona PBS", lat:33.4536581, lng:-112.0736419, heading:200 },
-      { id:"univcenter", name:"University Center",             lat:33.4529570, lng:-112.0734512, heading:250 },
-      { id:"civic",      name:"Civic Space Park",              lat:33.4544697, lng:-112.0746113, heading:70  }
+      { id:"cronkite", name:"Cronkite School / Arizona PBS",
+        image:"https://cdn.aframe.io/360-image-gallery-boilerplate/img/city.jpg",
+        links:[{ to:"univcenter", heading:200, label:"University Center" }] },
+      { id:"univcenter", name:"University Center",
+        image:"https://cdn.aframe.io/360-image-gallery-boilerplate/img/sechelt.jpg",
+        links:[{ to:"cronkite", heading:20, label:"Back to Cronkite" },
+               { to:"civic", heading:250, label:"Civic Space Park" }] },
+      { id:"civic", name:"Civic Space Park",
+        image:"https://cdn.aframe.io/360-image-gallery-boilerplate/img/cubes.jpg",
+        links:[{ to:"univcenter", heading:70, label:"University Center" }] }
     ];
 
-    let panorama = null, svService = null;
     const $ = (s) => document.querySelector(s);
+    let busy = false;
 
-    const logEl = $("#log");
-    function log(msg, cls) {
-      logEl.style.display = "block";
-      const line = document.createElement("div");
-      if (cls) line.className = cls;
-      const t = new Date().toLocaleTimeString();
-      line.textContent = "[" + t + "] " + msg;
-      logEl.appendChild(line);
-      logEl.scrollTop = logEl.scrollHeight;
+    function renderHotspots(stop) {
+      const container = $("#hotspots");
+      container.innerHTML = "";
+      stop.links.forEach((link) => {
+        const rad = (link.heading - 90) * Math.PI / 180;
+        const r = 6;
+        const px = r * Math.cos(rad), pz = r * Math.sin(rad);
+        const yaw = Math.atan2(-px, -pz) * 180 / Math.PI;
+
+        const marker = document.createElement("a-entity");
+        marker.setAttribute("position", px + " 0 " + pz);
+        marker.setAttribute("rotation", "0 " + yaw + " 0");
+
+        const disc = document.createElement("a-circle");
+        disc.setAttribute("radius", "0.6");
+        disc.setAttribute("material", "color:#c8472b; shader:flat; opacity:0.92; side:double");
+        disc.setAttribute("class", "clickable");
+        disc.setAttribute("animation__pulse",
+          "property:scale; dir:alternate; loop:true; dur:1100; from:1 1 1; to:1.12 1.12 1.12");
+
+        const txt = document.createElement("a-text");
+        txt.setAttribute("value", link.label);
+        txt.setAttribute("align", "center");
+        txt.setAttribute("position", "0 -0.95 0");
+        txt.setAttribute("width", "6");
+        txt.setAttribute("color", "#f6f4ee");
+
+        disc.addEventListener("click", () => goTo(link.to));
+        marker.appendChild(disc); marker.appendChild(txt);
+        container.appendChild(marker);
+      });
     }
 
-    // Catch everything, so nothing fails silently to a black screen
-    window.addEventListener("error", (e) =>
-      log("JS ERROR: " + (e.message || e.error) + (e.filename ? " @ " + e.filename : ""), "e"));
-    window.addEventListener("unhandledrejection", (e) =>
-      log("PROMISE REJECT: " + (e.reason && e.reason.message ? e.reason.message : e.reason), "e"));
-    window.gm_authFailure = () =>
-      log("gm_authFailure: Google rejected the key (billing OFF, API not enabled, or referrer not allowed).", "e");
+    function fade(to) {
+      return new Promise((resolve) => {
+        const el = $("#fade");
+        el.setAttribute("animation__fade",
+          "property: material.opacity; to: " + to + "; dur: 300; easing: easeInOutQuad");
+        setTimeout(resolve, 310);
+      });
+    }
 
-    function loadGoogle(key) {
+    function preload(src) {
       return new Promise((resolve, reject) => {
-        log("Loading Google Maps JS...", "i");
-        const s = document.createElement("script");
-        s.src = "https://maps.googleapis.com/maps/api/js?key=" + encodeURIComponent(key) + "&v=weekly";
-        s.async = true;
-        s.onload = () => { log("Google Maps JS onload fired.", "ok"); resolve(); };
-        s.onerror = () => reject(new Error("script onerror (network blocked, or Maps JS API not enabled)"));
-        document.head.appendChild(s);
+        const img = new Image();
+        img.crossOrigin = "anonymous";
+        img.onload = () => resolve(src);
+        img.onerror = () => reject(new Error("image failed: " + src));
+        img.src = src;
       });
     }
 
-    function buildStopButtons() {
-      const wrap = $("#stops"); wrap.innerHTML = "";
-      STOPS.forEach((stop) => {
-        const b = document.createElement("button");
-        b.textContent = stop.name; b.dataset.id = stop.id;
-        b.addEventListener("click", () => goTo(stop.id));
-        wrap.appendChild(b);
-      });
-    }
-
-    function goTo(stopId) {
+    async function goTo(stopId) {
+      if (busy) return;
       const stop = STOPS.find((s) => s.id === stopId);
       if (!stop) return;
-      log("Looking up imagery near " + stop.name + " ...", "i");
-      svService.getPanorama({ location:{ lat:stop.lat, lng:stop.lng }, radius:120 }, (data, status) => {
-        log("getPanorama status = " + status, status === google.maps.StreetViewStatus.OK ? "ok" : "e");
-        if (status !== google.maps.StreetViewStatus.OK) {
-          log("-> no imagery here; move this stop's lat/lng closer to a street.", "e");
-          return;
-        }
-        log("panoId = " + data.location.pano + " — calling setPano()", "ok");
-        panorama.setPano(data.location.pano);
-        panorama.setPov({ heading: stop.heading || 0, pitch: 0 });
-        const idx = STOPS.indexOf(stop) + 1;
-        $("#hudStop").textContent = "Stop " + String(idx).padStart(2, "0");
-        $("#hudName").textContent = stop.name;
-        document.querySelectorAll("#stops button").forEach((b) =>
-          b.classList.toggle("active", b.dataset.id === stopId));
-        log("Done. If the view is still black, it is the WebGL Street View renderer in this browser.", "i");
-      });
+      busy = true;
+      $("#loading").style.display = "block";
+
+      const idx = STOPS.indexOf(stop) + 1;
+      $("#hudStop").textContent = "Stop " + String(idx).padStart(2, "0");
+      $("#hudName").textContent = stop.name;
+
+      try {
+        await fade(1);                      // to black
+        await preload(stop.image);          // fetch pano fully first
+        $("#sky").setAttribute("src", stop.image);
+        renderHotspots(stop);
+        await new Promise((r) => setTimeout(r, 120));
+        await fade(0);                      // reveal
+      } catch (e) {
+        $("#hudName").textContent = stop.name + " — " + e.message;
+        await fade(0);
+      } finally {
+        $("#loading").style.display = "none";
+        busy = false;
+      }
     }
 
-    $("#startBtn").addEventListener("click", async () => {
-      const key = $("#key").value.trim();
-      $("#err").textContent = "";
-      if (!key) { $("#err").textContent = "Paste your API key first."; return; }
-      $("#startBtn").textContent = "Loading...";
-      log("Start clicked. Key length = " + key.length, "i");
-      try {
-        await loadGoogle(key);
-        log("google object present = " + (typeof google !== "undefined"), "i");
-        svService = new google.maps.StreetViewService();
-        log("StreetViewService created.", "ok");
-        panorama = new google.maps.StreetViewPanorama($("#pano"), {
-          pov:{ heading:0, pitch:0 }, zoom:0,
-          motionTracking:true, motionTrackingControl:true,
-          addressControl:false, fullscreenControl:false, linksControl:true,
-          panControl:false, zoomControl:false, enableCloseButton:false
-        });
-        log("StreetViewPanorama created.", "ok");
-        panorama.addListener("status_changed", () => log("panorama status_changed = " + panorama.getStatus(), "i"));
-        $("#setup").style.display = "none";
-        $("#pano").style.display = "block";
-        $("#hud").style.display = "block";
-        buildStopButtons();
-        goTo(STOPS[0].id);
-      } catch (e) {
-        $("#startBtn").textContent = "Load the tour";
-        $("#err").textContent = e.message;
-        log("FATAL: " + e.message, "e");
-      }
+    $("#startBtn").addEventListener("click", () => {
+      $("#setup").style.display = "none";
+      $("#scene").style.display = "block";
+      $("#hud").style.display = "block";
+      goTo(STOPS[0].id);
     });
-
-    $("#key").addEventListener("keydown", (e) => { if (e.key === "Enter") $("#startBtn").click(); });
   </script>
 </body>
 </html>
